@@ -113,7 +113,7 @@ st.markdown("""
 
 # ── Initialise session state ──────────────────────────────────────────────
 for key, default in [("user", None), ("active_tab", "dashboard"),
-                     ("alert_messages", []), ("last_refresh", 0)]:
+                     ("alert_messages", []), ("last_refresh", time.time())]:
     if key not in st.session_state:
         st.session_state[key] = default
 
@@ -232,12 +232,12 @@ if tab == "dashboard" and role in ("supervisor", "admin"):
     st.subheader("📊 Live Agent Dashboard")
 
    # Auto-refresh every 10 seconds
-    now_ts = time.time()
-    if now_ts - st.session_state.last_refresh > 10:
-        st.session_state.last_refresh = now_ts
-        st.rerun()
-    # Force rerun after 10 seconds using meta refresh
-    st.markdown('<meta http-equiv="refresh" content="10">', unsafe_allow_html=True)
+now_ts = time.time()
+
+if now_ts - st.session_state.last_refresh >= 10:
+    st.session_state.last_refresh = now_ts
+    st.rerun()
+    
     records = db.get_attendance_today()
     agents_cache = db.get_agents()
 
