@@ -22,6 +22,18 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Hide Streamlit menu and footer for all users
+st.markdown("""
+<style>
+    #MainMenu {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+    [data-testid="stDecoration"] {display: none !important;}
+    [data-testid="stStatusWidget"] {visibility: hidden !important;}
+</style>
+""", unsafe_allow_html=True)
+
 # ── CSS ───────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
