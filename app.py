@@ -231,12 +231,13 @@ tab = st.session_state.active_tab
 if tab == "dashboard" and role in ("supervisor", "admin"):
     st.subheader("📊 Live Agent Dashboard")
 
-    # Auto-refresh every 60 seconds
+   # Auto-refresh every 10 seconds
     now_ts = time.time()
-    if now_ts - st.session_state.last_refresh > 60:
+    if now_ts - st.session_state.last_refresh > 10:
         st.session_state.last_refresh = now_ts
         st.rerun()
-
+    # Force rerun after 10 seconds using meta refresh
+    st.markdown('<meta http-equiv="refresh" content="10">', unsafe_allow_html=True)
     records = db.get_attendance_today()
     agents_cache = db.get_agents()
 
