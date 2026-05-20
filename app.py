@@ -177,12 +177,11 @@ user     = auth.current_user()
 role     = auth.current_role()
 username = auth.current_username()
 
-# ── Auto-refresh for dashboard (does NOT log out — only reruns if on dashboard) ──
-if role in ("supervisor", "admin") and st.session_state.active_tab == "dashboard":
-    now_ts = time.time()
-    if now_ts - st.session_state.last_refresh > 10:
-        st.session_state.last_refresh = now_ts
-        st.rerun()
+# ── Auto-refresh every 10 seconds on ALL pages (never clears session) ──
+_now_ts = time.time()
+if _now_ts - st.session_state.last_refresh > 10:
+    st.session_state.last_refresh = _now_ts
+    st.rerun()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -339,11 +338,11 @@ if tab == "dashboard" and role in ("supervisor", "admin"):
             df = pd.DataFrame(rows)
             def color_status(val):
                 return {
-                    "Tea Break":   "background-color:#FFF3E0;color:#E65100",
-                    "Lunch Break": "background-color:#E3F2FD;color:#1565C0",
-                    "Clocked Out": "background-color:#E8F5E9;color:#1B5E20",
-                    "Dialing":     "background-color:#F3F8FF;color:#1F3864",
-                }.get(val, "")
+                    "Tea Break":   "background-color:#FFF3E0;color:#E65100;font-weight:bold",
+                    "Lunch Break": "background-color:#E3F2FD;color:#1565C0;font-weight:bold",
+                    "Clocked Out": "background-color:#E8F5E9;color:#1B5E20;font-weight:bold",
+                    "Dialing":     "background-color:#E8F0FE;color:#1a237e;font-weight:bold",
+                }.get(val, "background-color:#E8F0FE;color:#1a237e;font-weight:bold")
             st.dataframe(df.style.map(color_status, subset=["Status"]),
                          use_container_width=True, hide_index=True)
 
@@ -408,11 +407,9 @@ elif tab == "tea":
                 st.rerun()
 
         elif not tea_end:
-            # Show live countdown
             try:
                 tea_start_dt = datetime.strptime(f"{today_str()} {tea_start}", "%Y-%m-%d %H:%M").replace(tzinfo=SAST)
                 elapsed_secs = int((now_sast() - tea_start_dt).total_seconds())
-                elapsed_mins = elapsed_secs // 60
                 limit_secs   = TEA_LIMIT * 60
                 remaining    = limit_secs - elapsed_secs
                 over         = max(0, -remaining)
@@ -422,22 +419,41 @@ elif tab == "tea":
                 if is_over:
                     st.markdown(f"""
                     <div class="countdown-box over">
-                        <div class="timer">+{rem_m:02d}:{rem_s:02d}</div>
+                        <div class="timer" id="tea_timer">+{rem_m:02d}:{rem_s:02d}</div>
                         <div class="label">⚠️ OVER the 15-minute limit!</div>
                     </div>""", unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
                     <div class="countdown-box">
-                        <div class="timer">{rem_m:02d}:{rem_s:02d}</div>
-                        <div class="label">☕ Tea break — time remaining</div>
+                        <div class="timer" id="tea_timer">{rem_m:02d}:{rem_s:02d}</div>
+                        <div class="label">☕ Tea break — counting down from 15:00</div>
                     </div>""", unsafe_allow_html=True)
 
-                st.caption(f"Started: {tea_start} SAST | Elapsed: {elapsed_mins} min")
+                st.markdown(f"""<script>
+                (function() {{
+                    var r = {remaining};
+                    function tick() {{
+                        r--;
+                        var el = document.getElementById('tea_timer');
+                        if (!el) return;
+                        var abs = Math.abs(r);
+                        var mm = String(Math.floor(abs/60)).padStart(2,'0');
+                        var ss = String(abs%60).padStart(2,'0');
+                        el.textContent = (r < 0 ? '+' : '') + mm + ':' + ss;
+                        if (r < 0) el.parentElement.style.background = 'linear-gradient(135deg,#C00000,#E53935)';
+                        if (r > -3600) setTimeout(tick, 1000);
+                    }}
+                    setTimeout(tick, 1000);
+                }})();
+                </script>""", unsafe_allow_html=True)
+
+                st.caption(f"☕ Started: **{tea_start} SAST** | Limit: 15 min")
 
                 if is_over:
                     reason = st.text_area("Reason for overage *", placeholder="Please explain why you exceeded 15 minutes")
                 else:
                     reason = ""
+                    st.info("⏳ Timer counting down. Press End Tea Break when you return.")
 
                 if st.button("✅ End Tea Break", use_container_width=True, type="primary"):
                     if is_over and not reason.strip():
@@ -447,17 +463,12 @@ elif tab == "tea":
                         db.update_field(username, "tea_end", end_t, today_str())
                         db.update_field(username, "status", "Dialing", today_str())
                         if is_over:
-                            over_mins = int(over / 60)
+                            over_mins = max(1, int(over / 60))
                             db.update_field(username, "tea_extra", over_mins, today_str())
                             if reason: db.update_field(username, "reason", reason, today_str())
                         st.success(f"✅ Tea break ended at {end_t} SAST")
                         st.session_state.tea_countdown_start = None
-                        time.sleep(0.5)
-                        st.rerun()
-
-                # Auto-rerun every second for live countdown
-                time.sleep(1)
-                st.rerun()
+                        time.sleep(0.5); st.rerun()
 
             except Exception as e:
                 st.error(f"Countdown error: {e}")
@@ -499,7 +510,6 @@ elif tab == "lunch":
             try:
                 lunch_start_dt = datetime.strptime(f"{today_str()} {lunch_start}", "%Y-%m-%d %H:%M").replace(tzinfo=SAST)
                 elapsed_secs   = int((now_sast() - lunch_start_dt).total_seconds())
-                elapsed_mins   = elapsed_secs // 60
                 limit_secs     = LUNCH_LIMIT * 60
                 remaining      = limit_secs - elapsed_secs
                 over           = max(0, -remaining)
@@ -509,22 +519,49 @@ elif tab == "lunch":
                 if is_over:
                     st.markdown(f"""
                     <div class="countdown-box over">
-                        <div class="timer">+{rem_m:02d}:{rem_s:02d}</div>
+                        <div class="timer" id="lunch_timer">+{rem_m:02d}:{rem_s:02d}</div>
                         <div class="label">⚠️ OVER the 60-minute limit!</div>
                     </div>""", unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
                     <div class="countdown-box">
-                        <div class="timer">{rem_m:02d}:{rem_s:02d}</div>
-                        <div class="label">🍽️ Lunch break — time remaining</div>
+                        <div class="timer" id="lunch_timer">{rem_m:02d}:{rem_s:02d}</div>
+                        <div class="label">🍽️ Lunch break — counting down from 60:00</div>
                     </div>""", unsafe_allow_html=True)
 
-                st.caption(f"Started: {lunch_start} SAST | Elapsed: {elapsed_mins} min")
+                # JS countdown ticking every second client-side
+                st.markdown(f"""
+                <script>
+                (function() {{
+                    var remaining = {remaining};
+                    var el = document.getElementById('lunch_timer');
+                    if (!el) return;
+                    var iv = setInterval(function() {{
+                        remaining--;
+                        var abs = Math.abs(remaining);
+                        var m = Math.floor(abs/60);
+                        var s = abs % 60;
+                        var mm = String(m).padStart(2,'0');
+                        var ss = String(s).padStart(2,'0');
+                        if (remaining < 0) {{
+                            el.textContent = '+' + mm + ':' + ss;
+                            el.parentElement.style.background = 'linear-gradient(135deg,#C00000,#E53935)';
+                        }} else {{
+                            el.textContent = mm + ':' + ss;
+                        }}
+                        if (remaining <= -3600) clearInterval(iv);
+                    }}, 1000);
+                }})();
+                </script>
+                """, unsafe_allow_html=True)
+
+                st.caption(f"🍽️ Started: **{lunch_start} SAST** | Limit: 60 min")
 
                 if is_over:
                     reason = st.text_area("Reason for overage *", placeholder="Please explain why you exceeded 60 minutes")
                 else:
                     reason = ""
+                    st.info("⏳ Timer is counting down. Click End Lunch Break when you return.")
 
                 if st.button("✅ End Lunch Break", use_container_width=True, type="primary"):
                     if is_over and not reason.strip():
@@ -534,17 +571,12 @@ elif tab == "lunch":
                         db.update_field(username, "lunch_end", end_t, today_str())
                         db.update_field(username, "status", "Dialing", today_str())
                         if is_over:
-                            over_mins = int(over / 60)
+                            over_mins = max(1, int(over / 60))
                             db.update_field(username, "lunch_extra", over_mins, today_str())
                             if reason: db.update_field(username, "reason", reason, today_str())
                         st.success(f"✅ Lunch ended at {end_t} SAST")
                         st.session_state.lunch_countdown_start = None
-                        time.sleep(0.5)
-                        st.rerun()
-
-                # Auto-rerun every second for live countdown
-                time.sleep(1)
-                st.rerun()
+                        time.sleep(0.5); st.rerun()
 
             except Exception as e:
                 st.error(f"Countdown error: {e}")
