@@ -1,87 +1,3 @@
-
-Claude finished the response
-https://claude.ai/share/8ea51cd7-c9f3-409b-b0ca-788ae843d3f3
-
-11:41 AM
-
-Failed to fetch: https://claude.ai/share/8ea51cd7-c9f3-409b-b0ca-788ae843d3f3
-Failed to fetch: https://claude.ai/share/8ea51cd7-c9f3-409b-b0ca-788ae843d3f3
-Unfortunately I can't fetch shared Claude conversation links — claude.ai blocks automated access via robots.txt.
-
-Could you paste the content of the conversation here, or describe what you'd like help with? I'm happy to assist once I can see what's in it!
-
-
-Claude finished the response import pandas as pd from datetime import datetime, timedelta import tkinter as tk from tkinter import ttk, messagebox import os import shutil import winsound # ============================================ # EMPLOYEE TIME MONITORING SYSTEM - UPGRADED # South Africa C
-
-pasted
-
-11:42 AM
-
-Reconstructed incomplete project trajectory and anticipated continuation needs
-Reconstructed incomplete project trajectory and anticipated continuation needs
-I can see the full conversation history. You were in the middle of fixing the Streamlit app — the last Claude was writing a complete app.py using @st.fragment(run_every=...) to solve the countdown and auto-refresh issues, but you ran out of messages mid-write.
-
-Let me pick up right where that left off and deliver the complete fixed file. The outstanding issues to fix are:
-
-Status colour — "Dialing" text invisible on white background
-Auto-refresh on ALL pages — without logging out on rerun
-Live countdown — using @st.fragment(run_every=1) so it ticks every second properly
-SAST time in header — live and accurate
-Let me build the complete app.py now. I'll need to see your current file first so I don't break anything that's already working:
-
-
-Check if there's an existing app.py in the workspace
-Check if there's an existing app.py in the workspace
-No files uploaded. Can you paste your current app.py content here, or upload the file? That way I can fix exactly what's there without breaking the working parts.
-
-Alternatively, if you'd like me to write a complete fresh app.py from scratch based on everything in the conversation history (all agents, supervisors, admins, books, roles, features), I can do that right now — just say the word and I'll build the whole thing.
-
-
-1779356653077_app (1).py
-py
-
-11:44 AM
-
-I notice the user prompt is empty, so I cannot determine the primary language. However, based on the thinking block which is in English, here is my summary: Diagnosed Streamlit session persistence issues and architected fragment-based solutions
-I notice the user prompt is empty, so I cannot determine the primary language. However, based on the thinking block which is in English, here is my summary: Diagnosed Streamlit session persistence issues and architected fragment-based solutions
-Good, I have the full file. Now I can see exactly what's happening. Let me fix all the issues properly:
-
-Root causes:
-
-Countdown frozen — The st.empty() approach only updates when the 10-second full rerun fires. Need @st.fragment(run_every=1) for true per-second ticking.
-Browser tab refresh → login — That's a Streamlit limitation (new browser session = new state). The fix is to minimise full reruns using fragments so users rarely need to refresh manually.
-Auto-refresh on all pages — Fragment run_every replaces the manual st.rerun() trigger cleanly.
-Status colour — The CSS is there but needs reinforcement in the dashboard table styling.
-
-Ran 4 commands, created a file, read a file
-Ran 4 commands, created a file, read a file
-Here's exactly what was fixed and why it will now work:
-
-1. Real 1-second countdown — The tea and lunch countdowns are now @st.fragment(run_every=1) functions. Streamlit reruns only those small sections every second — the digits visibly tick down from 15:00 and 60:00 without touching the rest of the page or the session.
-
-2. Auto-refresh on ALL pages — The live clock at the top (live_clock_fragment) is also @st.fragment(run_every=1) — the SAST time in the header updates every second on every page. The dashboard uses @st.fragment(run_every=10) so the agent table refreshes every 10 seconds independently.
-
-3. No more logout on rerun — Fragments rerun themselves, not the full app. The session is never cleared. The only time the full app reruns is when a button is actually clicked (clock in, end break, etc.), which is correct behaviour.
-
-4. Status colour fixed — Added proper CSS badge classes (.badge-dial, .badge-tea, .badge-lunch, .badge-out) with dark text on coloured backgrounds, used in both the sidebar agent panel and the dashboard table. "Dialing" is now dark navy on pale blue — clearly visible on any background.
-
-What to do: Replace app.py on GitHub with this file (same edit-pencil process as before) and Streamlit Cloud will redeploy in ~2 minutes.
-
-
-App
-PY 
-
-Next time, try this in Cowork
-
-Hand off complex tasks for Claude to handle independently. Come back to finished results.
-
-
-
-
-
-
-Claude is AI and can make mistakes. Please double-check responses.
-App · PY
 """
 app.py — NICS Employee Time Monitoring System
 Fixes: real 1-second countdown, auto-refresh on all pages, status colour, no logout on rerun
@@ -93,16 +9,16 @@ import time
 import auth
 import database as db
 from utils import calc_late_minutes, calc_new_knockoff, format_email, safe_int, TEA_LIMIT, LUNCH_LIMIT
- 
+
 SAST = timezone(timedelta(hours=2))
 def now_sast():   return datetime.now(SAST)
 def now_str():    return now_sast().strftime("%H:%M")
 def today_str():  return now_sast().strftime("%Y-%m-%d")
- 
+
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="NICS Time Monitoring", page_icon="🕐",
                    layout="wide", initial_sidebar_state="expanded")
- 
+
 # ── Global CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""<style>
 #MainMenu,header,footer,[data-testid="stToolbar"],
@@ -130,13 +46,13 @@ st.markdown("""<style>
 .badge-out {background:#E8F5E9;color:#1B5E20}
 div[data-testid="stButton"] button{border-radius:6px;font-weight:600}
 </style>""", unsafe_allow_html=True)
- 
+
 # ── Session state defaults ─────────────────────────────────────────────────────
 for k, v in [("user", None), ("active_tab", "dashboard"),
               ("dark_mode", False), ("_action_done", False)]:
     if k not in st.session_state:
         st.session_state[k] = v
- 
+
 # ── Dark / Light theme ─────────────────────────────────────────────────────────
 if st.session_state.dark_mode:
     st.markdown("""<style>
@@ -155,7 +71,7 @@ else:
     section[data-testid="stSidebar"] .stButton button:hover{
       background:rgba(255,255,255,0.3)!important}
     </style>""", unsafe_allow_html=True)
- 
+
 # ── Header (static — fragments update their own clocks) ───────────────────────
 t = now_sast()
 st.markdown(f"""<div class="main-header">
@@ -164,7 +80,7 @@ st.markdown(f"""<div class="main-header">
 Tea: 15 min &nbsp;|&nbsp; Lunch: 60 min &nbsp;|&nbsp;
 🇿🇦 {t.strftime('%A, %d %B %Y')} &nbsp;<strong>{t.strftime('%H:%M:%S')}</strong> SAST</p>
 </div>""", unsafe_allow_html=True)
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # LOGIN
 # ══════════════════════════════════════════════════════════════════════════════
@@ -190,20 +106,20 @@ if not auth.is_logged_in():
                         st.error("Invalid credentials. Agents need no password.")
         st.caption("💡 Agents: username only. Supervisors/Admin: username + password.")
     st.stop()
- 
+
 # ── Authenticated ──────────────────────────────────────────────────────────────
 user     = auth.current_user()
 role     = auth.current_role()
 username = auth.current_username()
 tab      = st.session_state.active_tab
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
     st.markdown(f"**👤 {format_email(username)}**")
     st.caption(f"Role: {role.title()}")
- 
+
     # Agent self-status panel
     if role == "agent":
         st.markdown("---")
@@ -231,14 +147,14 @@ with st.sidebar:
                 unsafe_allow_html=True)
         else:
             st.info("Not clocked in yet.")
- 
+
     st.markdown("---")
     st.markdown("#### ⏱️ Actions")
     for lbl, key in [("⏰ Clock In","clockin"),("☕ Tea Break","tea"),
                      ("🍽️ Lunch Break","lunch"),("🚪 Clock Out","clockout")]:
         if st.button(lbl, use_container_width=True, key=f"sb_{key}"):
             st.session_state.active_tab = key; st.rerun()
- 
+
     if role in ("supervisor","admin"):
         st.markdown("---"); st.markdown("#### 📊 Reports & Tools")
         for lbl, key in [
@@ -253,22 +169,22 @@ with st.sidebar:
         ]:
             if st.button(lbl, use_container_width=True, key=f"sb_{key}"):
                 st.session_state.active_tab = key; st.rerun()
- 
+
     if role == "admin":
         st.markdown("---")
         if st.button("⚙️ Admin Panel", use_container_width=True, key="sb_admin"):
             st.session_state.active_tab = "admin"; st.rerun()
- 
+
     st.markdown("---")
     if st.button(
         "☀️ Light Mode" if st.session_state.dark_mode else "🌙 Dark Mode",
         use_container_width=True, key="sb_dm"
     ):
         st.session_state.dark_mode = not st.session_state.dark_mode; st.rerun()
- 
+
     if st.button("🚪 Logout", use_container_width=True, key="sb_logout"):
         auth.logout(); st.rerun()
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # FRAGMENT: Live clock (updates header time every second)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -277,9 +193,9 @@ def live_clock_fragment():
     now = now_sast()
     st.caption(f"🇿🇦 Live: **{now.strftime('%H:%M:%S')} SAST** — "
                f"{now.strftime('%A, %d %B %Y')}")
- 
+
 live_clock_fragment()
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # FRAGMENT: Dashboard — auto-refreshes every 10 s without full page rerun
 # ══════════════════════════════════════════════════════════════════════════════
@@ -291,26 +207,26 @@ def dashboard_fragment(role, username):
         for bd in db.get_supervisor_books(username).values():
             allowed.update(bd.get("agents", []))
         records = [r for r in records if r["agent"] in allowed]
- 
+
     st.subheader("📊 Live Agent Dashboard")
     st.caption(f"🔄 Auto-refreshes every 10 s | "
                f"🇿🇦 {now_sast().strftime('%H:%M:%S')} SAST")
- 
+
     if not records:
         st.info("No agents have clocked in today yet.")
         return
- 
+
     total    = len(records)
     on_time  = sum(1 for r in records if safe_int(r.get("late_minutes",0)) == 0)
     late_cnt = sum(1 for r in records if safe_int(r.get("late_minutes",0)) > 0)
     on_brk   = sum(1 for r in records if r.get("status","") in ("Tea Break","Lunch Break"))
     co       = sum(1 for r in records if r.get("status","") == "Clocked Out")
- 
+
     c1,c2,c3,c4,c5 = st.columns(5)
     c1.metric("Total",total); c2.metric("On Time",on_time); c3.metric("Late",late_cnt)
     c4.metric("On Break",on_brk); c5.metric("Clocked Out",co)
     st.markdown("---")
- 
+
     cur = now_str()
     for r in records:
         s = r.get("status","")
@@ -328,7 +244,7 @@ def dashboard_fragment(role, username):
                 if el > LUNCH_LIMIT:
                     st.warning(f"⚠️ {format_email(r['agent'])} — Lunch {el-LUNCH_LIMIT} min OVER!")
             except: pass
- 
+
     # Status colour map for dataframe
     STATUS_CSS = {
         "Tea Break":   "background-color:#FFF3E0;color:#E65100;font-weight:bold",
@@ -336,15 +252,15 @@ def dashboard_fragment(role, username):
         "Clocked Out": "background-color:#E8F5E9;color:#1B5E20;font-weight:bold",
         "Dialing":     "background-color:#E8F0FE;color:#1a237e;font-weight:bold",
     }
- 
+
     books_list = sorted(set(r.get("book","") or "—" for r in records))
     bf = st.selectbox("Filter by Book", ["All Books"]+books_list, key="dash_book_filter")
- 
+
     def dur(s, e):
         try: return str(int((datetime.strptime(e,"%H:%M")-
                               datetime.strptime(s,"%H:%M")).total_seconds()/60))+"m"
         except: return "—"
- 
+
     rows = []
     for r in records:
         if bf != "All Books" and (r.get("book","") or "—") != bf: continue
@@ -368,7 +284,7 @@ def dashboard_fragment(role, username):
             ),
             use_container_width=True, hide_index=True
         )
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # FRAGMENT: Tea countdown — ticks every second
 # ══════════════════════════════════════════════════════════════════════════════
@@ -382,7 +298,7 @@ def tea_countdown_fragment(username, ts, today_s):
         remaining   = limit_secs - elapsed
         rem_m, rem_s = divmod(abs(remaining), 60)
         is_over     = remaining < 0
- 
+
         if is_over:
             st.markdown(f"""<div class="cbox cbox-red">
             <div class="digits">+{rem_m:02d}:{rem_s:02d}</div>
@@ -399,7 +315,7 @@ def tea_countdown_fragment(username, ts, today_s):
             </div>""", unsafe_allow_html=True)
             reason = ""
             st.info(f"☕ Started: **{ts} SAST** | Press End Tea Break when you return.")
- 
+
         if st.button("✅ End Tea Break", use_container_width=True,
                      type="primary", key="end_tea_frag"):
             if is_over and not (reason or "").strip():
@@ -416,7 +332,7 @@ def tea_countdown_fragment(username, ts, today_s):
                 st.session_state._tea_done = True
     except Exception as e:
         st.error(f"Error in tea countdown: {e}")
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # FRAGMENT: Lunch countdown — ticks every second
 # ══════════════════════════════════════════════════════════════════════════════
@@ -430,7 +346,7 @@ def lunch_countdown_fragment(username, ls, today_s):
         remaining   = limit_secs - elapsed
         rem_m, rem_s = divmod(abs(remaining), 60)
         is_over     = remaining < 0
- 
+
         if is_over:
             st.markdown(f"""<div class="cbox cbox-red">
             <div class="digits">+{rem_m:02d}:{rem_s:02d}</div>
@@ -447,7 +363,7 @@ def lunch_countdown_fragment(username, ls, today_s):
             </div>""", unsafe_allow_html=True)
             reason = ""
             st.info(f"🍽️ Started: **{ls} SAST** | Press End Lunch Break when you return.")
- 
+
         if st.button("✅ End Lunch Break", use_container_width=True,
                      type="primary", key="end_lunch_frag"):
             if is_over and not (reason or "").strip():
@@ -464,15 +380,15 @@ def lunch_countdown_fragment(username, ls, today_s):
                 st.session_state._lunch_done = True
     except Exception as e:
         st.error(f"Error in lunch countdown: {e}")
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # PAGE ROUTING
 # ══════════════════════════════════════════════════════════════════════════════
- 
+
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 if tab == "dashboard" and role in ("supervisor","admin"):
     dashboard_fragment(role, username)
- 
+
 # ── Clock In ──────────────────────────────────────────────────────────────────
 elif tab == "clockin":
     st.subheader("⏰ Clock In")
@@ -499,7 +415,7 @@ elif tab == "clockin":
                 db.clock_in_agent(username, book, ct, late, reason, today_str())
                 st.success(f"✅ Clocked in at {ct} SAST")
                 time.sleep(0.8); st.rerun()
- 
+
 # ── Tea Break ─────────────────────────────────────────────────────────────────
 elif tab == "tea":
     st.subheader("☕ Tea Break")
@@ -531,7 +447,7 @@ elif tab == "tea":
                 st.success(f"✅ Tea completed: {ts} → {te} ({d} min)")
             except:
                 st.success(f"✅ Tea completed: {ts} → {te}")
- 
+
 # ── Lunch Break ───────────────────────────────────────────────────────────────
 elif tab == "lunch":
     st.subheader("🍽️ Lunch Break")
@@ -563,7 +479,7 @@ elif tab == "lunch":
                 st.success(f"✅ Lunch completed: {ls} → {le} ({d} min)")
             except:
                 st.success(f"✅ Lunch completed: {ls} → {le}")
- 
+
 # ── Clock Out ─────────────────────────────────────────────────────────────────
 elif tab == "clockout":
     st.subheader("🚪 Clock Out")
@@ -596,7 +512,7 @@ elif tab == "clockout":
             db.clock_out_agent(username, ct, late, tea_x, lunch_x, nk, today_str())
             st.success("✅ Clocked out! Goodbye 👋")
             time.sleep(1.5); auth.logout(); st.rerun()
- 
+
 # ── Daily Report ──────────────────────────────────────────────────────────────
 elif tab == "daily_report" and role in ("supervisor","admin"):
     st.subheader("📊 Daily Report")
@@ -631,7 +547,7 @@ elif tab == "daily_report" and role in ("supervisor","admin"):
         st.dataframe(df, use_container_width=True, hide_index=True)
         lc = len(df[df["Late(m)"] > 0])
         st.caption(f"Total: {len(df)} | On Time: {len(df)-lc} | Late: {lc}")
- 
+
 # ── Weekly/Monthly Report ─────────────────────────────────────────────────────
 elif tab == "range_report" and role in ("supervisor","admin"):
     st.subheader("📅 Weekly / Monthly Report")
@@ -667,7 +583,7 @@ elif tab == "range_report" and role in ("supervisor","admin"):
             st.download_button("📥 Download Excel", buf.getvalue(),
                 file_name=f"NICS_{start}_{end}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
- 
+
 # ── Absent Today ──────────────────────────────────────────────────────────────
 elif tab == "absent" and role in ("supervisor","admin"):
     st.subheader("🔍 Absent Today")
@@ -685,7 +601,7 @@ elif tab == "absent" and role in ("supervisor","admin"):
         st.warning(f"⚠️ {len(absent)} absent:")
         for a in sorted(absent):
             st.markdown(f"- 📧 {format_email(a)}")
- 
+
 # ── Agent History ─────────────────────────────────────────────────────────────
 elif tab == "history" and role in ("supervisor","admin"):
     st.subheader("📜 Agent History")
@@ -707,7 +623,7 @@ elif tab == "history" and role in ("supervisor","admin"):
         df   = df[keep]
         df.columns = [c.replace("_"," ").title() for c in df.columns]
         st.dataframe(df, use_container_width=True, hide_index=True)
- 
+
 # ── Export ────────────────────────────────────────────────────────────────────
 elif tab == "export" and role in ("supervisor","admin"):
     st.subheader("💾 Export")
@@ -729,7 +645,7 @@ elif tab == "export" and role in ("supervisor","admin"):
             st.download_button("📥 Download", buf.getvalue(),
                 file_name=f"NICS_{start}_{end}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
- 
+
 # ── Manage Books ──────────────────────────────────────────────────────────────
 elif tab == "books" and role in ("supervisor","admin"):
     st.subheader("📚 Manage Books")
@@ -791,7 +707,7 @@ elif tab == "books" and role in ("supervisor","admin"):
                     if st.button("➕ Assign Supervisor", type="primary"):
                         au2 = as2.split("@")[0]
                         db.upsert_book(sel_book, bs+[au2], ba); st.rerun()
- 
+
 # ── Change Password ───────────────────────────────────────────────────────────
 elif tab == "password" and role in ("supervisor","admin"):
     st.subheader("🔑 Change Password")
@@ -806,7 +722,7 @@ elif tab == "password" and role in ("supervisor","admin"):
             else:
                 db.set_setting("admin_password" if pt=="Admin" else "supervisor_password", np)
                 st.success(f"✅ {pt} password updated.")
- 
+
 # ── Admin Panel ───────────────────────────────────────────────────────────────
 elif tab == "admin" and role == "admin":
     st.subheader("⚙️ Admin Panel")
@@ -846,15 +762,10 @@ elif tab == "admin" and role == "admin":
                 else:
                     db.remove_agent(ru)
                     st.success(f"Removed {rem}"); time.sleep(0.4); st.rerun()
- 
+
 # ── Fallback ──────────────────────────────────────────────────────────────────
 else:
     if role == "agent":
         st.info("👈 Use the sidebar to Clock In, manage breaks, or Clock Out.")
     elif role in ("supervisor","admin"):
         st.session_state.active_tab = "dashboard"; st.rerun()
- 
-
-
-
-
